@@ -6,11 +6,19 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrisma() {
-  const raw = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const filePath = raw.replace(/^file:/, "");
+  const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+
+  // Turso / LibSQL distant
+  if (url.startsWith("libsql://") || url.startsWith("wss://") || url.startsWith("ws://")) {
+    const adapter = new PrismaLibSql({ url });
+    return new PrismaClient({ adapter });
+  }
+
+  // SQLite local — conversion en file URL (nécessaire sur Windows)
+  const filePath = url.replace(/^file:/, "");
   const absPath = path.resolve(process.cwd(), filePath);
-  const url = pathToFileURL(absPath).href;
-  const adapter = new PrismaLibSql({ url });
+  const fileUrl = pathToFileURL(absPath).href;
+  const adapter = new PrismaLibSql({ url: fileUrl });
   return new PrismaClient({ adapter });
 }
 
